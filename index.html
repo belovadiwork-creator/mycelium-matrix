@@ -21,14 +21,14 @@
     }
 
     :root {
-      --bg: #0b0b0b;
-      --surface: #111111;
-      --surface2: #161616;
-      --text: #f2eee7;
-      --muted: #9a9a9a;
-      --faint: #5d5d5d;
-      --border: rgba(255,255,255,0.1);
-      --border2: rgba(255,255,255,0.16);
+      --bg: #ffffff;
+      --surface: #f7f6f3;
+      --surface2: #efeee9;
+      --text: #1a1a1a;
+      --muted: #595959;
+      --faint: #8a8a8a;
+      --border: rgba(0,0,0,0.1);
+      --border2: rgba(0,0,0,0.18);
       --gold: #c9a84c;
       --gold-dim: #8a6e2e;
       --gold-bg: rgba(201,168,76,0.07);
@@ -320,9 +320,9 @@
 
     .org-node.type-holding  { border-top: 2px solid var(--gold); }
     .org-node.type-staff    { border-top: 2px solid #4a8fca; }
-    .org-node.type-subsidiary { border-top: 1px solid rgba(255,255,255,0.22); }
+    .org-node.type-subsidiary { border-top: 1px solid rgba(0,0,0,0.2); }
     .org-node.type-division { border-top: 2px solid #c0504a; border-color: rgba(192,80,74,0.35); }
-    .org-node.type-external { border-style: dashed; border-color: rgba(255,255,255,0.14); }
+    .org-node.type-external { border-style: dashed; border-color: rgba(0,0,0,0.18); }
 
     .org-node-num {
       font-size: 9px;
@@ -553,7 +553,7 @@
       user-select: none;
     }
 
-    .editor-panel-header:hover { background: #1a1a1a; }
+    .editor-panel-header:hover { background: #e9e7e1; }
 
     .editor-toggle-icon {
       font-size: 18px;
@@ -910,7 +910,7 @@
       background: var(--surface);
     }
 
-    .matrix tr:hover td { background: rgba(255,255,255,0.01); }
+    .matrix tr:hover td { background: rgba(0,0,0,0.02); }
 
     .badge {
       display: inline-flex;
@@ -1021,7 +1021,7 @@
     }
 
     .limits-table td:first-child { font-weight: 800; color: var(--text); background: var(--surface); }
-    .limits-table tr:hover td { background: rgba(255,255,255,0.01); }
+    .limits-table tr:hover td { background: rgba(0,0,0,0.02); }
 
     /* ── LEGEND ── */
     .legend {
@@ -1193,7 +1193,7 @@
         flex-wrap: nowrap;
         gap: 0;
         padding: 8px 12px;
-        background: rgba(11,11,11,0.97);
+        background: rgba(255,255,255,0.97);
         border-top: 1px solid var(--border2);
         z-index: 200;
       }
@@ -2015,7 +2015,7 @@ function buildOrgChartHTML() {
   });
 
   // ── SVG orthogonal lines ─────────────────────────────
-  const LINE  = 'rgba(255,255,255,0.2)';
+  const LINE  = 'rgba(0,0,0,0.32)';
   const LINE2 = 'rgba(74,143,202,0.5)';   // coordination dashes (ИД → depts)
 
   let svg = `<svg style="position:absolute;inset:0;overflow:visible;pointer-events:none"
