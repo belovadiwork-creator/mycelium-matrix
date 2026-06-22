@@ -1993,20 +1993,28 @@ function buildOrgChartHTML() {
   const botCount   = bottomRow.length;
   const botTotalW  = botCount * NW + (botCount - 1) * HGAP;
   const W          = Math.max(1100, botTotalW + 120);
-  const H          = 780;
 
   // ── Layout constants ─────────────────────────────────
+  // Левая колонка: CEO → Бизнес-ассистент → ИД (ассистент — между CEO и ИД)
   const CEO_Y   = 40;
   const CEO_BOT = CEO_Y + NH;          // 270
-  // ИД arm junction — short branch from CEO vertical
-  const ARM_Y   = CEO_BOT + 70;        // 340
-  // ИД card: centred on ARM_Y
-  const idX     = 20;
-  const idY     = ARM_Y - Math.round(NH / 2);   // 225
-  const ID_BOT  = idY + NH;            // 455
+  const VGAP    = 30;                  // вертикальный зазор между ассистентом и ИД
+  const idX     = 20;                  // общая колонка X для ассистента и ИД
+
+  // Бизнес-ассистент: центрирован на коротком рукаве от CEO
+  const ARM_Y      = CEO_BOT + 70;                // 340
+  const assistX    = idX;
+  const assistY    = ARM_Y - Math.round(NH / 2);  // 225
+  const ASSIST_BOT = assistY + NH;                // 455
+
+  // ИД: сразу под ассистентом, в той же колонке
+  const idY     = ASSIST_BOT + VGAP;   // 485
+  const ID_BOT  = idY + NH;            // 715
+
   // Main horizontal bar for bottom row — must be below ИД card bottom + gap
-  const BAR_Y   = Math.max(ARM_Y + 90, ID_BOT + 40);  // 495
-  const DEPT_Y  = BAR_Y + 28;         // 523
+  const BAR_Y   = Math.max(ARM_Y + 90, ID_BOT + 40);  // 755
+  const DEPT_Y  = BAR_Y + 28;
+  const H       = DEPT_Y + NH + 40;
 
   const ceoCX   = W / 2;
   const ceoX    = ceoCX - NW / 2;
@@ -2014,15 +2022,11 @@ function buildOrgChartHTML() {
   // Bottom row: centred across full canvas width
   const rowStartX = (W - botTotalW) / 2;
 
-  // Карточка ассистента: зеркально ИД, с правой стороны, на той же высоте
-  const assistX = W - 20 - NW;
-  const assistY = idY;
-
   // ── Position map ─────────────────────────────────────
   const pos = {};
-  if (ceo)        pos[ceo.id]        = { x: ceoX, y: CEO_Y };
-  if (staffNode)  pos[staffNode.id]  = { x: idX,  y: idY   };
+  if (ceo)        pos[ceo.id]        = { x: ceoX,    y: CEO_Y };
   if (assistNode) pos[assistNode.id] = { x: assistX, y: assistY };
+  if (staffNode)  pos[staffNode.id]  = { x: idX,     y: idY   };
   bottomRow.forEach((c, i) => {
     pos[c.id] = { x: rowStartX + i * (NW + HGAP), y: DEPT_Y };
   });
@@ -2039,32 +2043,24 @@ function buildOrgChartHTML() {
     // 1. CEO vertical spine: CEO bottom → main horizontal bar
     svg += line(ceoCX, CEO_BOT, ceoCX, BAR_Y, LINE);
 
-    // 2. ИД left arm: branch from CEO spine at ARM_Y → ИД right edge
-    if (staffNode) {
+    // 2. Бизнес-ассистент: короткий левый рукав от CEO (между CEO и ИД)
+    if (assistNode) {
+      const assistRX = assistX + NW;
+      const assistCY = assistY + NH / 2;
+      svg += line(ceoCX, ARM_Y, assistRX, ARM_Y, LINE);        // horizontal arm left
+      svg += line(assistRX, assistCY, assistRX, ARM_Y, LINE);  // vertical: ассистент right-center → arm junction
+    }
+
+    // 2b. Прямая связь Бизнес-ассистент → ИД (стоят друг под другом в одной колонке)
+    if (assistNode && staffNode) {
+      const colCX = idX + NW / 2;
+      svg += dashLine(colCX, ASSIST_BOT, colCX, idY, LINE3);
+    } else if (staffNode) {
+      // Ассистента нет — ИД получает рукав напрямую от CEO, как раньше
       const idRX = idX + NW;
       const idCY = idY + NH / 2;
-      svg += line(ceoCX, ARM_Y, idRX, ARM_Y, LINE);   // horizontal arm left
-      svg += line(idRX, idCY, idRX, ARM_Y, LINE);     // vertical: ИД right-center → arm junction
-    }
-
-    // 2b. Бизнес-ассистент: правый рукав от CEO (зеркало рукава ИД)
-    if (assistNode) {
-      const assistLX = assistX;
-      const assistCY = assistY + NH / 2;
-      svg += line(ceoCX, ARM_Y, assistLX, ARM_Y, LINE);        // horizontal arm right
-      svg += line(assistLX, assistCY, assistLX, ARM_Y, LINE);  // vertical: ассистент left-center → arm junction
-    }
-
-    // 2c. Пунктирная связь Бизнес-ассистент → ИД (входит в карточку ИД снизу)
-    if (assistNode && staffNode) {
-      const idCX2      = idX + NW / 2;
-      const idBotY      = idY + NH;
-      const assistCX2   = assistX + NW / 2;
-      const assistBotY  = assistY + NH;
-      const detourY     = idBotY + Math.max(15, Math.min(30, (BAR_Y - idBotY) / 2));
-      svg += dashLine(assistCX2, assistBotY, assistCX2, detourY, LINE3);
-      svg += dashLine(assistCX2, detourY, idCX2, detourY, LINE3);
-      svg += dashLine(idCX2, detourY, idCX2, idBotY, LINE3);
+      svg += line(ceoCX, ARM_Y, idRX, ARM_Y, LINE);
+      svg += line(idRX, idCY, idRX, ARM_Y, LINE);
     }
 
     // 3. Horizontal bar across all bottom-row card centers
@@ -2105,11 +2101,11 @@ function buildOrgChartHTML() {
   let cards = '';
   let nodeNum = 1;
 
-  // Order: CEO, ИД, Бизнес-ассистент, then bottom row
+  // Order: CEO, Бизнес-ассистент, ИД, then bottom row
   const orderedIds = [
     ceo?.id,
-    staffNode?.id,
     assistNode?.id,
+    staffNode?.id,
     ...bottomRow.map(c => c.id),
   ].filter(Boolean);
 
