@@ -323,6 +323,7 @@
     .org-node.type-subsidiary { border-top: 1px solid rgba(0,0,0,0.2); }
     .org-node.type-division { border-top: 2px solid #c0504a; border-color: rgba(192,80,74,0.35); }
     .org-node.type-external { border-style: dashed; border-color: rgba(0,0,0,0.18); }
+    .org-node.type-assistant { border-top: 2px solid #8a76d4; }
 
     .org-node-num {
       font-size: 9px;
@@ -347,6 +348,7 @@
     .org-node.type-holding  .org-node-badge { border-color: rgba(201,168,76,0.45); color: var(--gold); }
     .org-node.type-staff    .org-node-badge { border-color: rgba(74,143,202,0.45); color: #4a8fca; }
     .org-node.type-division .org-node-badge { border-color: rgba(192,80,74,0.45); color: #c0504a; }
+    .org-node.type-assistant .org-node-badge { border-color: rgba(138,118,212,0.45); color: #8a76d4; }
 
     .org-node-name {
       font-size: 18px;
@@ -1870,7 +1872,9 @@ const DEFAULT_STRUCTURE = {
     { id:"rd",    name:"R&D",                         legalName:"Направление",        type:"subsidiary",parentId:"ceo", role:"Разработки · Испытания · Продукты",            description:"Руководитель R&D" },
     { id:"sales", name:"Коммерческий отдел",          legalName:"Маркетинг и продажи",type:"subsidiary",parentId:"ceo", role:"Лиды · Воронка · CRM",                        description:"Коммерческий директор" },
     { id:"loft",  name:"Лофт",                        legalName:"Отдельное юр. лицо", type:"external",  parentId:"ceo", role:"Аренда площадок · Сервис · Мероприятия",      description:"Управляющая лофтом" },
-    { id:"back",  name:"Бэк-офис",                    legalName:"Прямой контроль ИД", type:"division",  parentId:"ceo", role:"Юристы · Бухгалтерия · IT · Admin · СБ",      description:"" }
+    { id:"legal", name:"Юридический отдел",            legalName:"Под кураторством ИД", type:"division",  parentId:"ceo", role:"Юристы · Договоры · Претензии · Госорганы",   description:"Руководитель отдела" },
+    { id:"fin",   name:"Финансовый отдел",             legalName:"Под кураторством ИД", type:"division",  parentId:"ceo", role:"Бухгалтерия · Платежи · Отчётность",          description:"Главный бухгалтер" },
+    { id:"assist",name:"Бизнес-ассистент",             legalName:"",                   type:"assistant", parentId:"ceo", role:"IT · СБ · АХО",                               description:"Кристина" }
   ],
   relations: [
     { id:"r1",  from:"ceo", to:"id",    relationType:"management",   label:"Стратегическое руководство", description:"CEO устанавливает KPI и полномочия ИД" },
@@ -1883,7 +1887,10 @@ const DEFAULT_STRUCTURE = {
     { id:"r8",  from:"id",  to:"hrd",   relationType:"coordination", label:"Координация",                 description:"ИД формирует структуру совместно с HR директором" },
     { id:"r9",  from:"id",  to:"rd",    relationType:"coordination", label:"Координация",                 description:"ИД оценивает экономику разработок" },
     { id:"r10", from:"id",  to:"sales", relationType:"coordination", label:"Координация",                 description:"ИД согласовывает скидки и проверяет экономику вложений" },
-    { id:"r11", from:"id",  to:"back",  relationType:"ownership",    label:"Прямой контроль",             description:"Бэк-офис в прямом подчинении ИД" }
+    { id:"r11", from:"id",  to:"legal", relationType:"ownership",    label:"Прямой контроль",             description:"Юридический отдел в прямом подчинении ИД" },
+    { id:"r12", from:"id",  to:"fin",   relationType:"ownership",    label:"Прямой контроль",             description:"Финансовый отдел в прямом подчинении ИД" },
+    { id:"r13", from:"ceo", to:"assist",relationType:"management",   label:"Подчинение",                  description:"Бизнес-ассистент в подчинении CEO (совмещение задач)" },
+    { id:"r14", from:"assist",to:"id",  relationType:"coordination", label:"Координация",                 description:"Бизнес-ассистент поддерживает ИД по операционным вопросам" }
   ]
 };
 
@@ -1923,7 +1930,7 @@ function saveStructure() {
 // ════════════════════════════════════════════════
 
 function getTypeLabel(type) {
-  const map = { holding:'Головная компания', subsidiary:'Дочернее общество', division:'Подразделение', project:'Проект', entity:'Юридическое лицо' };
+  const map = { holding:'Головная компания', subsidiary:'Дочернее общество', division:'Подразделение', project:'Проект', entity:'Юридическое лицо', staff:'Исполнительный директор', external:'Отдельное юр. лицо', assistant:'Бизнес-ассистент' };
   return map[type] || type;
 }
 
@@ -1979,8 +1986,9 @@ function buildOrgChartHTML() {
 
   const ceo        = structure.companies.find(c => c.type === 'holding') || structure.companies.find(c => !c.parentId);
   const staffNode  = structure.companies.find(c => c.type === 'staff');
-  // Bottom row = ALL children of CEO (inc. Бэк-офис) — staff node excluded
-  const bottomRow  = structure.companies.filter(c => c.id !== ceo?.id && c.id !== staffNode?.id);
+  const assistNode = structure.companies.find(c => c.type === 'assistant');
+  // Bottom row = ALL children of CEO except the staff node and the assistant node
+  const bottomRow  = structure.companies.filter(c => c.id !== ceo?.id && c.id !== staffNode?.id && c.id !== assistNode?.id);
 
   const botCount   = bottomRow.length;
   const botTotalW  = botCount * NW + (botCount - 1) * HGAP;
@@ -2006,10 +2014,15 @@ function buildOrgChartHTML() {
   // Bottom row: centred across full canvas width
   const rowStartX = (W - botTotalW) / 2;
 
+  // Карточка ассистента: зеркально ИД, с правой стороны, на той же высоте
+  const assistX = W - 20 - NW;
+  const assistY = idY;
+
   // ── Position map ─────────────────────────────────────
   const pos = {};
-  if (ceo)       pos[ceo.id]       = { x: ceoX, y: CEO_Y };
-  if (staffNode) pos[staffNode.id] = { x: idX,  y: idY   };
+  if (ceo)        pos[ceo.id]        = { x: ceoX, y: CEO_Y };
+  if (staffNode)  pos[staffNode.id]  = { x: idX,  y: idY   };
+  if (assistNode) pos[assistNode.id] = { x: assistX, y: assistY };
   bottomRow.forEach((c, i) => {
     pos[c.id] = { x: rowStartX + i * (NW + HGAP), y: DEPT_Y };
   });
@@ -2017,6 +2030,7 @@ function buildOrgChartHTML() {
   // ── SVG orthogonal lines ─────────────────────────────
   const LINE  = 'rgba(0,0,0,0.32)';
   const LINE2 = 'rgba(74,143,202,0.5)';   // coordination dashes (ИД → depts)
+  const LINE3 = 'rgba(138,118,212,0.6)';  // assistant connector dashes
 
   let svg = `<svg style="position:absolute;inset:0;overflow:visible;pointer-events:none"
     viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">`;
@@ -2033,6 +2047,26 @@ function buildOrgChartHTML() {
       svg += line(idRX, idCY, idRX, ARM_Y, LINE);     // vertical: ИД right-center → arm junction
     }
 
+    // 2b. Бизнес-ассистент: правый рукав от CEO (зеркало рукава ИД)
+    if (assistNode) {
+      const assistLX = assistX;
+      const assistCY = assistY + NH / 2;
+      svg += line(ceoCX, ARM_Y, assistLX, ARM_Y, LINE);        // horizontal arm right
+      svg += line(assistLX, assistCY, assistLX, ARM_Y, LINE);  // vertical: ассистент left-center → arm junction
+    }
+
+    // 2c. Пунктирная связь Бизнес-ассистент → ИД (входит в карточку ИД снизу)
+    if (assistNode && staffNode) {
+      const idCX2      = idX + NW / 2;
+      const idBotY      = idY + NH;
+      const assistCX2   = assistX + NW / 2;
+      const assistBotY  = assistY + NH;
+      const detourY     = idBotY + Math.max(15, Math.min(30, (BAR_Y - idBotY) / 2));
+      svg += dashLine(assistCX2, assistBotY, assistCX2, detourY, LINE3);
+      svg += dashLine(assistCX2, detourY, idCX2, detourY, LINE3);
+      svg += dashLine(idCX2, detourY, idCX2, idBotY, LINE3);
+    }
+
     // 3. Horizontal bar across all bottom-row card centers
     if (botCount > 0) {
       const barL = rowStartX + NW / 2;
@@ -2045,7 +2079,7 @@ function buildOrgChartHTML() {
       });
     }
 
-    // Пунктирные линии координации убраны
+    // Пунктирные линии координации (CEO/ИД → отделы) убраны
   }
 
   svg += `</svg>`;
@@ -2059,20 +2093,23 @@ function buildOrgChartHTML() {
     external:   'Отд. юр. лицо',
     project:    'Проект',
     service:    'Сервис',
+    assistant:  'Бизнес-ассистент',
   };
   const badgeEN = {
     holding: 'HOLDING', staff: 'DIRECTION', subsidiary: 'DIRECTION',
-    division: 'SERVICE', external: 'PROJECT', project: 'PROJECT', service: 'SERVICE'
+    division: 'SERVICE', external: 'PROJECT', project: 'PROJECT', service: 'SERVICE',
+    assistant: 'ASSISTANT'
   };
 
   // ── Card HTML ─────────────────────────────────────────
   let cards = '';
   let nodeNum = 1;
 
-  // Order: CEO, ИД, then bottom row
+  // Order: CEO, ИД, Бизнес-ассистент, then bottom row
   const orderedIds = [
     ceo?.id,
     staffNode?.id,
+    assistNode?.id,
     ...bottomRow.map(c => c.id),
   ].filter(Boolean);
 
@@ -2172,7 +2209,7 @@ function renderStructureEditor() {
 
   const companiesOptions = structure.companies.map(c => `<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
   const parentOptions = `<option value="">— нет (корень) —</option>` + companiesOptions;
-  const typeOptions = ['holding','subsidiary','division','project','entity'].map(t =>
+  const typeOptions = ['holding','staff','subsidiary','division','external','assistant','project','entity'].map(t =>
     `<option value="${t}">${getTypeLabel(t)}</option>`
   ).join('');
   const relTypeOptions = ['ownership','management','service','financial','contract','other'].map(t =>
